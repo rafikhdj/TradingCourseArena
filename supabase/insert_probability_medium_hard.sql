@@ -1,0 +1,147 @@
+-- Insert Probability questions with difficulty 2 (medium) and 3 (hard)
+-- These questions include choices for MCQ type
+
+INSERT INTO public.questions (statement, topic, difficulty, type, choices, answer, explanation, theme)
+VALUES
+-- Difficulty 2 (Medium)
+('A box contains 5 red and 7 blue balls. One ball is drawn at random. What is the probability it is red?', 
+ 'probability', 2, 'mcq', 
+ '[{"id":"a","label":"5/12"},{"id":"b","label":"5/7"},{"id":"c","label":"7/12"},{"id":"d","label":"1/2"}]'::jsonb,
+ '"a"'::jsonb,
+ '5 out of 12 balls are red, so probability = 5/12.',
+ 'prob_basic'),
+
+('You roll two fair dice. What is the probability the sum is 9?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"1/6"},{"id":"b","label":"1/9"},{"id":"c","label":"1/12"},{"id":"d","label":"1/18"}]'::jsonb,
+ '"b"'::jsonb,
+ 'Four outcomes give 9: (3,6), (4,5), (5,4), (6,3). So 4/36 = 1/9.',
+ 'prob_discrete'),
+
+('A fair coin is flipped three times. What is the probability of getting exactly 2 heads?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"1/4"},{"id":"b","label":"1/3"},{"id":"c","label":"3/8"},{"id":"d","label":"1/2"}]'::jsonb,
+ '"c"'::jsonb,
+ 'C(3,2)=3 outcomes out of 8 total → 3/8.',
+ 'prob_combinatorics'),
+
+('You draw one card from a 52-card deck. What is the probability of getting a face card?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"1/13"},{"id":"b","label":"3/13"},{"id":"c","label":"4/13"},{"id":"d","label":"1/4"}]'::jsonb,
+ '"b"'::jsonb,
+ 'There are 12 face cards, so 12/52 = 3/13.',
+ 'prob_discrete'),
+
+('A jar has 4 green, 4 yellow, and 2 red candies. If one candy is chosen, what is the chance it is not green?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"2/5"},{"id":"b","label":"1/2"},{"id":"c","label":"3/5"},{"id":"d","label":"4/5"}]'::jsonb,
+ '"c"'::jsonb,
+ 'Total = 10. Non-green = 6. Probability = 6/10 = 3/5.',
+ 'prob_basic'),
+
+('You roll a fair die twice. What is the probability that both results are even?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"1/4"},{"id":"b","label":"1/3"},{"id":"c","label":"1/2"},{"id":"d","label":"2/3"}]'::jsonb,
+ '"a"'::jsonb,
+ 'Even outcomes = 3 out of 6. So (3/6)*(3/6)=1/4.',
+ 'prob_basic'),
+
+('A die is rolled three times. Probability of getting no 6 at all?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"(5/6)^2"},{"id":"b","label":"(5/6)^3"},{"id":"c","label":"1-(5/6)^3"},{"id":"d","label":"(1/6)^3"}]'::jsonb,
+ '"b"'::jsonb,
+ 'Probability of not getting 6 = 5/6. So (5/6)^3.',
+ 'prob_basic'),
+
+('One card is drawn. What is the probability it is a diamond or a king?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"1/4"},{"id":"b","label":"4/13"},{"id":"c","label":"1/2"},{"id":"d","label":"16/52"}]'::jsonb,
+ '"b"'::jsonb,
+ '13 diamonds + 3 other kings = 16/52 = 4/13.',
+ 'prob_discrete'),
+
+('A number from 1 to 20 is chosen at random. Probability it is divisible by 4?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"1/4"},{"id":"b","label":"1/5"},{"id":"c","label":"1/10"},{"id":"d","label":"1/20"}]'::jsonb,
+ '"a"'::jsonb,
+ 'Divisible by 4: 4,8,12,16,20 → 5 numbers → 5/20=1/4.',
+ 'prob_discrete'),
+
+('A recent study shows 20% of customers buy product A. If 3 customers are independent, probability none buys A?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"0.2"},{"id":"b","label":"0.4"},{"id":"c","label":"0.512"},{"id":"d","label":"0.8"}]'::jsonb,
+ '"c"'::jsonb,
+ '(0.8)^3 = 0.512.',
+ 'prob_basic'),
+
+('Two balls are drawn with replacement from a bag of 6 red and 4 green. Probability first is green and second red?', 
+ 'probability', 2, 'mcq',
+ '[{"id":"a","label":"6/25"},{"id":"b","label":"4/25"},{"id":"c","label":"6/10"},{"id":"d","label":"1/2"}]'::jsonb,
+ '"a"'::jsonb,
+ 'Red=6/10, Green=4/10 → (4/10)*(6/10)=24/100=6/25.',
+ 'prob_basic'),
+
+('You choose a random letter from the alphabet (26). Probability it is a vowel (A,E,I,O,U)?', 
+ 'probability', 1, 'mcq',
+ '[{"id":"a","label":"5/26"},{"id":"b","label":"1/5"},{"id":"c","label":"1/26"},{"id":"d","label":"5/21"}]'::jsonb,
+ '"a"'::jsonb,
+ '5/26.',
+ 'prob_discrete'),
+
+-- Difficulty 3 (Hard)
+('A bag has 3 black balls and 1 white ball. Two balls are drawn without replacement. Probability both are black?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"1/4"},{"id":"b","label":"1/2"},{"id":"c","label":"3/4"},{"id":"d","label":"9/16"}]'::jsonb,
+ '"b"'::jsonb,
+ 'First black 3/4, then black 2/3 → product = 1/2.',
+ 'prob_basic'),
+
+('A drawer contains 8 socks: 5 blue, 3 white. If two socks are chosen at random without replacement, probability both are white?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"1/28"},{"id":"b","label":"3/28"},{"id":"c","label":"3/8"},{"id":"d","label":"9/64"}]'::jsonb,
+ '"b"'::jsonb,
+ 'P(white then white)= (3/8)*(2/7) = 6/56 = 3/28.',
+ 'prob_basic'),
+
+('A student has a 0.7 probability to attend class on any given day. What is the probability he attends exactly 2 days out of 3?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"0.441"},{"id":"b","label":"0.343"},{"id":"c","label":"0.49"},{"id":"d","label":"0.21"}]'::jsonb,
+ '"a"'::jsonb,
+ 'C(3,2)*0.7^2*0.3 = 3*0.49*0.3 = 0.441.',
+ 'prob_combinatorics'),
+
+('Two cards are drawn from a 52-card deck without replacement. Probability both are aces?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"1/221"},{"id":"b","label":"1/169"},{"id":"c","label":"4/52"},{"id":"d","label":"1/13"}]'::jsonb,
+ '"a"'::jsonb,
+ '4/52 * 3/51 = 12/2652 = 1/221.',
+ 'prob_discrete'),
+
+('Flip a fair coin 4 times. Probability of getting exactly 1 tail?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"1/16"},{"id":"b","label":"1/8"},{"id":"c","label":"1/4"},{"id":"d","label":"1/2"}]'::jsonb,
+ '"c"'::jsonb,
+ 'C(4,1)/16 = 4/16 = 1/4.',
+ 'prob_combinatorics'),
+
+('Two dice are rolled. Probability that the maximum of the two values is 4?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"1/6"},{"id":"b","label":"7/36"},{"id":"c","label":"1/4"},{"id":"d","label":"1/3"}]'::jsonb,
+ '"b"'::jsonb,
+ 'Count pairs where max=4: 7 outcomes out of 36.',
+ 'prob_discrete'),
+
+('A coin has probability p=0.6 of heads. Flip it twice. Probability of exactly one head?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"0.24"},{"id":"b","label":"0.48"},{"id":"c","label":"0.36"},{"id":"d","label":"0.6"}]'::jsonb,
+ '"b"'::jsonb,
+ '0.6*0.4 + 0.4*0.6 = 0.48.',
+ 'prob_basic'),
+
+('Random integer between 1 and 30. Probability it is prime?', 
+ 'probability', 3, 'mcq',
+ '[{"id":"a","label":"1/4"},{"id":"b","label":"1/5"},{"id":"c","label":"1/3"},{"id":"d","label":"1/2"}]'::jsonb,
+ '"c"'::jsonb,
+ 'Primes ≤30 = 10, so 10/30=1/3.',
+ 'prob_discrete');
+
