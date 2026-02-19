@@ -108,3 +108,41 @@ export interface MentalMathSession {
   created_at: string;
 }
 
+// ========================================
+// Market Making Types
+// ========================================
+
+export interface MarketMakingScenario {
+  id: string;
+  title: string;
+  question: string;
+  real_value: number;
+  unit: string;
+  category: 'fact' | 'guesstimate';
+  predefined_spread: number;
+}
+
+export type SpreadType = 'predefined' | '5' | '10' | '20';
+
+export interface MarketMakingTrade {
+  round: number;
+  userBid: number;
+  userAsk: number;
+  action: 'mine' | 'yours';
+  tradePrice: number;
+  userSide: 'buy' | 'sell';
+}
+
+export type MarketMakingPhase =
+  | 'AWAITING_MARKET'
+  | 'BLUFF'
+  | 'TECHNICAL_POSITION'
+  | 'TECHNICAL_PNL'
+  | 'GAME_OVER';
+
+export interface GameMessage {
+  id: string;
+  type: 'system' | 'trader' | 'user_market' | 'result' | 'info';
+  text: string;
+  highlight?: 'correct' | 'incorrect' | 'warning';
+}

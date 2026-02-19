@@ -44,7 +44,7 @@ const selectTopic = (): Topic => {
 /**
  * Generate a batch of questions with weighted distribution
  */
-const generateBatch = async (batchSize: number): Promise<Question[]> => {
+const generateBatch = async (batchSize: number, seenIds: Set<string>): Promise<Question[]> => {
   const questions: Question[] = [];
   const topicCounts: Record<Topic, number> = { 
     mental_math: 0, 
@@ -54,18 +54,46 @@ const generateBatch = async (batchSize: number): Promise<Question[]> => {
   };
   
   // Determine how many questions per topic based on uniform distribution
+  // Ensure we always get the requested batch size
+  let totalAssigned = 0;
   for (let i = 0; i < batchSize; i++) {
     const topic = selectTopic();
     topicCounts[topic]++;
+    totalAssigned++;
   }
   
-  // Generate Mental Math questions
+  // If we didn't get enough, fill with mental math (always available)
+  if (totalAssigned < batchSize) {
+    topicCounts.mental_math += (batchSize - totalAssigned);
+  }
+  
+  // Generate Mental Math questions (avoid duplicates by checking statement)
+  // Mix of easy, medium, and hard (weighted: 40% easy, 40% medium, 20% hard)
+  const seenStatements = new Set<string>();
   for (let i = 0; i < topicCounts.mental_math; i++) {
-    const question = generateMentalMathQuestion(
+    // Determine difficulty based on weighted random
+    const rand = Math.random();
+    const difficulty: 'easy' | 'medium' | 'hard' = 
+      rand < 0.4 ? 'easy' : rand < 0.8 ? 'medium' : 'hard';
+    
+    let question = generateMentalMathQuestion(
       DEFAULT_MENTAL_MATH_CONFIG.operations,
       DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
-      DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv
+      DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+      difficulty
     );
+    // Avoid exact duplicates (try up to 10 times)
+    let attempts = 0;
+    while (seenStatements.has(question.statement) && attempts < 10) {
+      question = generateMentalMathQuestion(
+        DEFAULT_MENTAL_MATH_CONFIG.operations,
+        DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+        DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+        difficulty
+      );
+      attempts++;
+    }
+    seenStatements.add(question.statement);
     questions.push(question);
   }
   
@@ -81,13 +109,44 @@ const generateBatch = async (batchSize: number): Promise<Question[]> => {
       .limit(500); // Fetch more questions to improve randomization
     
     if (probData && probData.length > 0) {
+      // Filter out already seen questions
+      const unseen = probData.filter((q: any) => !seenIds.has(q.id));
       // Shuffle using Fisher-Yates
-      const shuffled = [...probData];
+      const shuffled = [...unseen];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      questions.push(...(shuffled.slice(0, topicCounts.probability) as Question[]));
+      const selected = shuffled.slice(0, topicCounts.probability) as Question[];
+      selected.forEach((q: Question) => {
+        if (q.id) seenIds.add(q.id);
+      });
+      questions.push(...selected);
+      
+      // If we didn't get enough, fill with mental math
+      if (selected.length < topicCounts.probability) {
+        const needed = topicCounts.probability - selected.length;
+        for (let i = 0; i < needed; i++) {
+          const question = generateMentalMathQuestion(
+            DEFAULT_MENTAL_MATH_CONFIG.operations,
+            DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+            DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+            'medium'
+          );
+          questions.push(question);
+        }
+      }
+    } else if (topicCounts.probability > 0) {
+      // No probability questions available, fill with mental math
+      for (let i = 0; i < topicCounts.probability; i++) {
+        const question = generateMentalMathQuestion(
+          DEFAULT_MENTAL_MATH_CONFIG.operations,
+          DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+          DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+          'medium'
+        );
+        questions.push(question);
+      }
     }
   }
   
@@ -100,13 +159,44 @@ const generateBatch = async (batchSize: number): Promise<Question[]> => {
       .limit(500); // Fetch more questions to improve randomization
     
     if (brainData && brainData.length > 0) {
+      // Filter out already seen questions
+      const unseen = brainData.filter((q: any) => !q.id || !seenIds.has(q.id));
       // Shuffle using Fisher-Yates
-      const shuffled = [...brainData];
+      const shuffled = [...unseen];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      questions.push(...(shuffled.slice(0, topicCounts.brainteaser) as Question[]));
+      const selected = shuffled.slice(0, topicCounts.brainteaser) as Question[];
+      selected.forEach((q: Question) => {
+        if (q.id) seenIds.add(q.id);
+      });
+      questions.push(...selected);
+      
+      // If we didn't get enough, fill with mental math
+      if (selected.length < topicCounts.brainteaser) {
+        const needed = topicCounts.brainteaser - selected.length;
+        for (let i = 0; i < needed; i++) {
+          const question = generateMentalMathQuestion(
+            DEFAULT_MENTAL_MATH_CONFIG.operations,
+            DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+            DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+            'medium'
+          );
+          questions.push(question);
+        }
+      }
+    } else if (topicCounts.brainteaser > 0) {
+      // No brainteaser questions available, fill with mental math
+      for (let i = 0; i < topicCounts.brainteaser; i++) {
+        const question = generateMentalMathQuestion(
+          DEFAULT_MENTAL_MATH_CONFIG.operations,
+          DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+          DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+          'medium'
+        );
+        questions.push(question);
+      }
     }
   }
   
@@ -119,13 +209,44 @@ const generateBatch = async (batchSize: number): Promise<Question[]> => {
       .limit(500); // Fetch more questions to improve randomization
     
     if (derivData && derivData.length > 0) {
+      // Filter out already seen questions
+      const unseen = derivData.filter((q: any) => !q.id || !seenIds.has(q.id));
       // Shuffle using Fisher-Yates
-      const shuffled = [...derivData];
+      const shuffled = [...unseen];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      questions.push(...(shuffled.slice(0, topicCounts.derivatives) as Question[]));
+      const selected = shuffled.slice(0, topicCounts.derivatives) as Question[];
+      selected.forEach((q: Question) => {
+        if (q.id) seenIds.add(q.id);
+      });
+      questions.push(...selected);
+      
+      // If we didn't get enough, fill with mental math
+      if (selected.length < topicCounts.derivatives) {
+        const needed = topicCounts.derivatives - selected.length;
+        for (let i = 0; i < needed; i++) {
+          const question = generateMentalMathQuestion(
+            DEFAULT_MENTAL_MATH_CONFIG.operations,
+            DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+            DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+            'medium'
+          );
+          questions.push(question);
+        }
+      }
+    } else if (topicCounts.derivatives > 0) {
+      // No derivatives questions available, fill with mental math
+      for (let i = 0; i < topicCounts.derivatives; i++) {
+        const question = generateMentalMathQuestion(
+          DEFAULT_MENTAL_MATH_CONFIG.operations,
+          DEFAULT_MENTAL_MATH_CONFIG.ranges.addSub,
+          DEFAULT_MENTAL_MATH_CONFIG.ranges.multDiv,
+          'medium'
+        );
+        questions.push(question);
+      }
     }
   }
   
@@ -144,13 +265,16 @@ export const useInfiniteQuestions = () => {
   const [error, setError] = useState<Error | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const isLoadingBatchRef = useRef(false);
+  const seenQuestionIdsRef = useRef<Set<string>>(new Set()); // Track seen questions to avoid repetition
   
   // Load initial batch
   const loadInitialBatch = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const batch = await generateBatch(BATCH_SIZE);
+      seenQuestionIdsRef.current.clear(); // Reset seen questions
+      const batch = await generateBatch(BATCH_SIZE, seenQuestionIdsRef.current);
+      // Mark all questions as seen (already done in generateBatch)
       setQuestions(batch);
       setCurrentIndex(0);
     } catch (err) {
@@ -167,7 +291,8 @@ export const useInfiniteQuestions = () => {
     
     try {
       isLoadingBatchRef.current = true;
-      const batch = await generateBatch(BATCH_SIZE);
+      const batch = await generateBatch(BATCH_SIZE, seenQuestionIdsRef.current);
+      // Mark all questions as seen (already done in generateBatch)
       setQuestions(prev => [...prev, ...batch]);
     } catch (err) {
       console.error('Error loading next batch:', err);

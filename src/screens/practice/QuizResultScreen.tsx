@@ -271,7 +271,20 @@ export const QuizResultScreen = () => {
   };
 
   const handleRetry = () => {
-    navigation.navigate('PracticeSetup', { topic: config.topic });
+    // Check if this came from the new MentalMathQuizScreen (has 'mode' in config)
+    const mentalMathConfig = config as any;
+    if (isMentalMath && mentalMathConfig?.mode && (mentalMathConfig.mode === 'easy' || mentalMathConfig.mode === 'hard' || mentalMathConfig.mode === 'cours')) {
+      // Navigate back to MentalMathQuiz with the same params to replay
+      navigation.replace('MentalMathQuiz', {
+        mode: mentalMathConfig.mode,
+        durationSeconds: mentalMathConfig.durationSeconds,
+        operations: mentalMathConfig.operations,
+        methodIds: mentalMathConfig.methodIds,
+      });
+    } else {
+      // Regular practice or old mental math flow
+      navigation.navigate('PracticeSetup', { topic: config.topic });
+    }
   };
 
   const handleBackToHome = () => {

@@ -1,5 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import { Topic, Difficulty } from '../types';
+import { Topic, Difficulty, MarketMakingScenario, SpreadType } from '../types';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -20,6 +20,22 @@ export type TrainingStackParamList = {
     isMentalMath?: boolean;
   };
   QuizResult: { attempts: any[]; questions: any[]; config: any; timeSpent: number; isMentalMath?: boolean };
+  // Mental Math new screens
+  MentalMathMode: undefined;
+  MentalMathTraining: undefined;
+  MentalMathCours: undefined;
+  MentalMathQuiz: {
+    mode: 'easy' | 'hard' | 'cours';
+    durationSeconds: number;
+    operations?: string[];
+    methodIds?: string[];
+  };
+  // Market Making screens
+  MarketMakingSetup: undefined;
+  MarketMakingGame: {
+    scenario: MarketMakingScenario;
+    spreadType: SpreadType;
+  };
 };
 
 export type ArenaStackParamList = {

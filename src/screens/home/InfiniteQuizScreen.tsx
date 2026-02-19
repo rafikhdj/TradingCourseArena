@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, ActivityIndicator, Linking, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../components/Card';
 import { Typography } from '../../components/Typography';
@@ -24,23 +25,42 @@ export const InfiniteQuizScreen = () => {
   
   const [selectedAnswer, setSelectedAnswer] = useState<string | number>('');
   const questionStartTime = useRef(Date.now());
-  const isSubmitting = useRef(false);
+  const [isLocked, setIsLocked] = useState(false); // Use state instead of ref for disabled buttons
   const autoAdvanceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const mcqSelectTimeout = useRef<NodeJS.Timeout | null>(null); // Track MCQ selection timeout
   const textInputRef = useRef<TextInput>(null);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
+  const currentQuestionRef = useRef<Question | null>(null); // Keep ref in sync for ChatGPT button
   
   // Load initial batch on mount
   useEffect(() => {
     loadInitialBatch();
   }, [loadInitialBatch]);
   
+  // Keep ref in sync with current question (for ChatGPT button closure)
+  useEffect(() => {
+    currentQuestionRef.current = currentQuestion;
+  }, [currentQuestion]);
+
   // Reset state and focus input when question changes
   useEffect(() => {
     if (currentQuestion) {
+      // Clear ALL pending timeouts
+      if (autoAdvanceTimeout.current) {
+        clearTimeout(autoAdvanceTimeout.current);
+        autoAdvanceTimeout.current = null;
+      }
+      if (mcqSelectTimeout.current) {
+        clearTimeout(mcqSelectTimeout.current);
+        mcqSelectTimeout.current = null;
+      }
+      
+      // Reset all state
       setSelectedAnswer('');
       setFeedback(null);
       setShowAnswer(false);
+      setIsLocked(false);
       questionStartTime.current = Date.now();
       
       // Focus input only for numeric questions
@@ -169,8 +189,8 @@ export const InfiniteQuizScreen = () => {
     }
   };
   
-  const handleAnswer = async (answerOverride?: string | number) => {
-    if (isSubmitting.current || !currentQuestion) {
+  const handleAnswer = (answerOverride?: string | number) => {
+    if (isLocked || !currentQuestion) {
       return;
     }
     
@@ -180,68 +200,125 @@ export const InfiniteQuizScreen = () => {
       return;
     }
     
-    // Clear any pending auto-advance timeout
+    // Clear any pending timeouts
     if (autoAdvanceTimeout.current) {
       clearTimeout(autoAdvanceTimeout.current);
       autoAdvanceTimeout.current = null;
     }
+    if (mcqSelectTimeout.current) {
+      clearTimeout(mcqSelectTimeout.current);
+      mcqSelectTimeout.current = null;
+    }
     
-    isSubmitting.current = true;
     Keyboard.dismiss();
     
     const isCorrect = checkAnswer(answerToCheck, currentQuestion);
     setFeedback(isCorrect ? 'correct' : 'incorrect');
     
     // Save attempt in background (non-blocking)
-    saveAttempt(currentQuestion, answerToCheck, isCorrect);
+    saveAttempt(currentQuestion, answerToCheck, isCorrect).catch((err) => {
+      console.error('Error saving attempt:', err);
+    });
     
     if (isCorrect) {
+      // Lock buttons during auto-advance
+      setIsLocked(true);
       // Auto-advance after brief feedback
-      setTimeout(() => {
+      autoAdvanceTimeout.current = setTimeout(() => {
         setShowAnswer(false);
-        nextQuestion();
-        isSubmitting.current = false;
         setFeedback(null);
+        setIsLocked(false);
+        nextQuestion();
       }, 600);
-    } else {
-      // Show feedback, allow retry or skip
-      isSubmitting.current = false;
-      // User can try again or use "Skip" button
     }
+    // If incorrect: buttons stay unlocked (isLocked stays false)
+    // User can retry, skip, or view answer
   };
   
   const handleSkip = () => {
-    if (isSubmitting.current || !currentQuestion) return;
+    if (!currentQuestion) return;
     
-    // Save as incorrect if user hasn't answered
-    if (!showAnswer) {
-      saveAttempt(currentQuestion, selectedAnswer || '', false);
+    // Clear ALL pending timeouts
+    if (autoAdvanceTimeout.current) {
+      clearTimeout(autoAdvanceTimeout.current);
+      autoAdvanceTimeout.current = null;
     }
+    if (mcqSelectTimeout.current) {
+      clearTimeout(mcqSelectTimeout.current);
+      mcqSelectTimeout.current = null;
+    }
+    
+    // Save as incorrect if user hasn't answered (non-blocking)
+    if (!showAnswer && selectedAnswer) {
+      saveAttempt(currentQuestion, selectedAnswer, false).catch((err) => {
+        console.error('Error saving attempt:', err);
+      });
+    }
+    
+    // Reset state immediately
+    setFeedback(null);
+    setShowAnswer(false);
+    setIsLocked(false);
     
     // Move to next question
     nextQuestion();
-    isSubmitting.current = false;
-    setFeedback(null);
-    setShowAnswer(false);
   };
   
   const handleShowAnswer = () => {
-    if (!currentQuestion || isSubmitting.current) return;
+    if (!currentQuestion) return;
+    
+    // Clear ALL pending timeouts
+    if (autoAdvanceTimeout.current) {
+      clearTimeout(autoAdvanceTimeout.current);
+      autoAdvanceTimeout.current = null;
+    }
+    if (mcqSelectTimeout.current) {
+      clearTimeout(mcqSelectTimeout.current);
+      mcqSelectTimeout.current = null;
+    }
+    
     setShowAnswer(true);
     // Save as incorrect when showing answer
-    saveAttempt(currentQuestion, selectedAnswer || '', false);
+    saveAttempt(currentQuestion, selectedAnswer || '', false).catch((err) => {
+      console.error('Error saving attempt:', err);
+    });
+    // Reset state to allow user interaction
+    setFeedback('incorrect');
+    setIsLocked(false);
   };
   
   const handleMCQSelect = (choiceId: string) => {
+    if (isLocked) return;
+    
+    // Clear previous MCQ timeout if user changed their mind
+    if (mcqSelectTimeout.current) {
+      clearTimeout(mcqSelectTimeout.current);
+      mcqSelectTimeout.current = null;
+    }
+    
+    // Clear previous feedback so the new selection doesn't show as red immediately
+    setFeedback(null);
     setSelectedAnswer(choiceId);
-    // Auto-submit MCQ after selection
-    setTimeout(() => {
-      handleAnswer(choiceId);
-    }, 300);
+    
+    // Capture the current question to avoid race conditions
+    const questionAtSubmit = currentQuestion;
+    
+    // Auto-submit MCQ after brief visual feedback
+    mcqSelectTimeout.current = setTimeout(() => {
+      mcqSelectTimeout.current = null;
+      // Only submit if we're still on the same question
+      if (currentQuestionRef.current?.id === questionAtSubmit?.id) {
+        handleAnswer(choiceId);
+      }
+    }, 250);
   };
   
   const handleNumericInputChange = (text: string) => {
-    setSelectedAnswer(text);
+    // Allow only digits, decimal point, slash, minus, and spaces (for fractions like "7/2" or "5 / 12")
+    // Remove any invalid characters
+    const filteredText = text.replace(/[^0-9./\-\s]/g, '');
+    
+    setSelectedAnswer(filteredText);
     setFeedback(null);
     
     // Clear any existing auto-advance timeout
@@ -251,13 +328,13 @@ export const InfiniteQuizScreen = () => {
     }
     
     // Auto-advance for correct answers
-    if (text && currentQuestion && currentQuestion.type === 'numeric' && !isSubmitting.current) {
+    if (filteredText && currentQuestion && currentQuestion.type === 'numeric' && !isLocked) {
       autoAdvanceTimeout.current = setTimeout(() => {
-        if (!isSubmitting.current && currentQuestion) {
-          const isCorrect = checkAnswer(text, currentQuestion);
+        if (!isLocked && currentQuestion) {
+          const isCorrect = checkAnswer(filteredText, currentQuestion);
           
           if (isCorrect) {
-            handleAnswer(text);
+            handleAnswer(filteredText);
           }
         }
         autoAdvanceTimeout.current = null;
@@ -269,9 +346,10 @@ export const InfiniteQuizScreen = () => {
     if (!currentQuestion) return null;
     
     if (currentQuestion.type === 'mcq' && currentQuestion.choices) {
+      const choiceLabels = ['a', 'b', 'c', 'd', 'e', 'f'];
       return (
         <View style={styles.choicesContainer}>
-          {currentQuestion.choices.map((choice: { id: string; label: string }) => (
+          {currentQuestion.choices.map((choice: { id: string; label: string }, index: number) => (
             <TouchableOpacity
               key={choice.id}
               style={[
@@ -281,11 +359,16 @@ export const InfiniteQuizScreen = () => {
                 feedback === 'incorrect' && selectedAnswer === choice.id && styles.choiceButtonIncorrect,
               ]}
               onPress={() => handleMCQSelect(choice.id)}
-              disabled={isSubmitting.current}
+              disabled={isLocked}
             >
-              <Typography variant="body" color={selectedAnswer === choice.id ? colors.background : colors.text}>
-                {choice.label}
-              </Typography>
+              <View style={styles.choiceContent}>
+                <Typography variant="bodyBold" color={selectedAnswer === choice.id ? colors.background : colors.primary} style={styles.choiceLabel}>
+                  {choiceLabels[index] || String.fromCharCode(97 + index)}.
+                </Typography>
+                <Typography variant="body" color={selectedAnswer === choice.id ? colors.background : colors.text}>
+                  {choice.label}
+                </Typography>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -300,13 +383,15 @@ export const InfiniteQuizScreen = () => {
               feedback === 'correct' && styles.inputCorrect,
               feedback === 'incorrect' && styles.inputIncorrect,
             ]}
-            placeholder="Enter answer"
+            placeholder="Enter answer (e.g. 7/2 or 3.5)"
             placeholderTextColor={colors.textTertiary}
             value={String(selectedAnswer)}
             onChangeText={handleNumericInputChange}
-            keyboardType="decimal-pad"
+            keyboardType="default"
             autoFocus
-            editable={!isSubmitting.current}
+            editable={!isLocked}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
           {feedback && (
             <View style={styles.feedbackContainer}>
@@ -330,7 +415,7 @@ export const InfiniteQuizScreen = () => {
           value={String(selectedAnswer)}
           onChangeText={setSelectedAnswer}
           multiline
-          editable={!isSubmitting.current}
+          editable={!isLocked}
         />
       );
     }
@@ -393,9 +478,19 @@ export const InfiniteQuizScreen = () => {
               <Typography variant="body" color={colors.textTertiary} style={styles.questionNumber}>
                 Question
               </Typography>
-              <Typography variant="h3" color={colors.text} style={styles.questionText}>
-                {currentQuestion.statement}
-              </Typography>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={async () => {
+                  const q = currentQuestionRef.current;
+                  if (!q) return;
+                  await Clipboard.setStringAsync(q.statement);
+                  Alert.alert('Copied!', 'Question copied to clipboard.');
+                }}
+              >
+                <Typography variant="h3" color={colors.text} style={styles.questionText}>
+                  {currentQuestion.statement}
+                </Typography>
+              </TouchableOpacity>
             </Card>
             
             <View style={styles.answerSection}>
@@ -409,11 +504,39 @@ export const InfiniteQuizScreen = () => {
                   <Typography variant="h3" color={colors.correct} style={styles.correctAnswer}>
                     {String(currentQuestion.answer)}
                   </Typography>
-                  {currentQuestion.explanation && (
+                      {currentQuestion.explanation && (
                     <Typography variant="body" color={colors.textSecondary} style={styles.explanation}>
                       {currentQuestion.explanation}
                     </Typography>
                   )}
+                  <TouchableOpacity
+                    style={styles.chatgptButton}
+                    onPress={async () => {
+                      const questionToAsk = currentQuestionRef.current;
+                      if (!questionToAsk) return;
+                      
+                      // Copy question to clipboard
+                      await Clipboard.setStringAsync(questionToAsk.statement);
+                      
+                      // Try to open ChatGPT app, fallback to App Store
+                      try {
+                        const appUrl = 'chatgpt://';
+                        const canOpenApp = await Linking.canOpenURL(appUrl);
+                        if (canOpenApp) {
+                          await Linking.openURL(appUrl);
+                        } else {
+                          // App not installed → open App Store page
+                          await Linking.openURL('https://apps.apple.com/app/chatgpt/id6448311069');
+                        }
+                      } catch (err) {
+                        console.error('Error opening ChatGPT app:', err);
+                      }
+                    }}
+                  >
+                    <Typography variant="captionBold" color={colors.primary}>
+                      💬 Ask ChatGPT (copies question)
+                    </Typography>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -423,7 +546,7 @@ export const InfiniteQuizScreen = () => {
                 <TouchableOpacity
                   style={styles.showAnswerButton}
                   onPress={handleShowAnswer}
-                  disabled={isSubmitting.current}
+                  disabled={isLocked}
                 >
                   <Typography variant="bodyBold" color={colors.primary}>
                     Voir la réponse
@@ -432,12 +555,13 @@ export const InfiniteQuizScreen = () => {
               )}
               
               <TouchableOpacity
-                style={styles.skipButton}
+                style={styles.nextButton}
                 onPress={handleSkip}
-                disabled={isSubmitting.current}
+                disabled={false}
+                activeOpacity={0.7}
               >
-                <Typography variant="bodyBold" color={colors.textSecondary}>
-                  Skip →
+                <Typography variant="bodyBold" color={colors.primary}>
+                  Next →
                 </Typography>
               </TouchableOpacity>
             </View>
@@ -510,7 +634,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.border,
+  },
+  choiceContent: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  choiceLabel: {
+    minWidth: 24,
   },
   choiceButtonSelected: {
     backgroundColor: colors.primary + '20',
@@ -565,6 +696,8 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 16,
+    zIndex: 10,
   },
   showAnswerButton: {
     padding: 12,
@@ -573,6 +706,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
     backgroundColor: colors.primary + '10',
+  },
+  nextButton: {
+    padding: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   skipButton: {
     padding: 12,
@@ -600,6 +746,15 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  chatgptButton: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: colors.primary + '10',
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+    alignItems: 'center',
   },
 });
 

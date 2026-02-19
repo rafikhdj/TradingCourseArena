@@ -47,21 +47,32 @@ type QuestionFormat = 'standard' | 'gap' | 'decimal' | 'fraction' | 'percentage'
 export const generateMentalMathQuestion = (
   operations: MentalMathOperation[],
   addSubRange: MentalMathRange,
-  multDivRange: MentalMathRange
+  multDivRange: MentalMathRange,
+  difficulty: 'easy' | 'medium' | 'hard' = 'medium'
 ): Question => {
   // Randomly select an operation
   const operation = operations[Math.floor(Math.random() * operations.length)];
   
-  // Randomly select question format
-  const formats: QuestionFormat[] = [
-    'standard',      // 58 + 5 = ?
-    'gap',           // 49 × ? = 343
-    'decimal',       // 4.9 ÷ ? = 0.7, 10.7 × 13.2 = ?
-    'fraction',      // 14/7 + 35/70 = ?, 1/4 ÷ ? = 1/2
-    'percentage',    // 36 est … % de 80
-    'decimal_multiple', // 0.6 × 70 × 5000 = ?
-    'fraction_operation', // 15 ÷ 5/6 = ?, 5/6 × 12 = ?
-  ];
+  // Select question format based on difficulty
+  let formats: QuestionFormat[];
+  if (difficulty === 'easy') {
+    // Easy: only simple formats
+    formats = ['standard', 'gap'];
+  } else if (difficulty === 'medium') {
+    // Medium: add decimals
+    formats = ['standard', 'gap', 'decimal'];
+  } else {
+    // Hard: all formats including fractions and advanced
+    formats = [
+      'standard',      // 58 + 5 = ?
+      'gap',           // 49 × ? = 343
+      'decimal',       // 4.9 ÷ ? = 0.7, 10.7 × 13.2 = ?
+      'fraction',      // 14/7 + 35/70 = ?, 1/4 ÷ ? = 1/2
+      'percentage',    // 36 est … % de 80
+      'decimal_multiple', // 0.6 × 70 × 5000 = ?
+      'fraction_operation', // 15 ÷ 5/6 = ?, 5/6 × 12 = ?
+    ];
+  }
   
   const format = formats[Math.floor(Math.random() * formats.length)];
   

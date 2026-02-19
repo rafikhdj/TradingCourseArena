@@ -13,7 +13,11 @@
       "backgroundColor": "#0A0E27"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kirafh.TradingCourseArena",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +32,10 @@
     },
     "extra": {
       "supabaseUrl": "https://qcdylwlggtvvcwnwyqko.supabase.co",
-      "supabaseAnonKey": "sb_secret_35d8Vl6jN9af_OwINhrdnw_epB3XllQ"
+      "supabaseAnonKey": "sb_secret_35d8Vl6jN9af_OwINhrdnw_epB3XllQ",
+      "eas": {
+        "projectId": "afc2fd14-2ec0-4b09-a54d-7a6c69dd24af"
+      }
     }
   }
 }

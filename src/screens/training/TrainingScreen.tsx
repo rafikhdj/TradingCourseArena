@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TrainingStackParamList } from '../../navigation/types';
-import { Button } from '../../components/Button';
 import { Typography } from '../../components/Typography';
 import { Card } from '../../components/Card';
 import { TopicButton } from '../../components/TopicButton';
@@ -22,14 +21,13 @@ export const TrainingScreen = () => {
   const { data: userRank, isLoading: rankLoading } = useUserRank(user?.id);
 
   const handleTopicPress = (topic: Topic) => {
-    navigation.navigate('PracticeSetup', { topic });
+    if (topic === 'mental_math') {
+      // Navigate to new Mental Math mode selection
+      navigation.navigate('MentalMathMode');
+    } else {
+      navigation.navigate('PracticeSetup', { topic });
+    }
   };
-
-  const handlePracticePress = () => {
-    navigation.navigate('PracticeSetup');
-  };
-
-  // Removed One-on-One button (Arena is no longer a tab)
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -52,15 +50,29 @@ export const TrainingScreen = () => {
           </View>
         </View>
 
-        <View style={styles.actionsSection}>
-          <Button
-            title="Practice"
-            onPress={handlePracticePress}
-            variant="primary"
-            size="large"
-            fullWidth
-            style={styles.actionButton}
-          />
+        {/* Market Making */}
+        <View style={styles.marketMakingSection}>
+          <Typography variant="h3" style={styles.sectionTitle}>
+            Market Making
+          </Typography>
+          <TouchableOpacity
+            style={styles.marketMakingCard}
+            onPress={() => navigation.navigate('MarketMakingSetup')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.marketMakingIcon}>
+              <Typography variant="h2">🏦</Typography>
+            </View>
+            <View style={styles.marketMakingInfo}>
+              <Typography variant="bodyBold" color={colors.text}>
+                Make Me a Market!
+              </Typography>
+              <Typography variant="caption" color={colors.textSecondary}>
+                Practice market making on facts and guesstimates
+              </Typography>
+            </View>
+            <Typography variant="bodyBold" color={colors.primary}>→</Typography>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.leaderboardSection}>
@@ -131,12 +143,30 @@ const styles = StyleSheet.create({
   topicsGrid: {
     gap: 16,
   },
-  actionsSection: {
+  marketMakingSection: {
     marginBottom: 32,
+  },
+  marketMakingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.primary + '40',
     gap: 12,
   },
-  actionButton: {
-    marginBottom: 8,
+  marketMakingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  marketMakingInfo: {
+    flex: 1,
+    gap: 4,
   },
   leaderboardSection: {
     marginBottom: 16,

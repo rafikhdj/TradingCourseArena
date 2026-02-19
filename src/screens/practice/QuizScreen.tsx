@@ -237,9 +237,8 @@ export const QuizScreen = () => {
 
     const answerToCheck = answerOverride !== undefined ? answerOverride : selectedAnswer;
 
-    if (answerToCheck === '' && currentQuestion.type !== 'free_text') {
-      return;
-    }
+    // Allow empty answers - they will be marked as incorrect
+    // Removed the early return to allow Next button to work
 
     // Clear any pending auto-advance timeout
     if (autoAdvanceTimeout.current) {
@@ -526,16 +525,41 @@ export const QuizScreen = () => {
           </View>
 
           {!isMentalMath && (
-            <Button
-              title={isLastQuestion ? 'Finish' : 'Next'}
-              onPress={() => handleAnswer()}
-              variant="primary"
-              size="large"
-              fullWidth
-              disabled={!!(selectedAnswer === '' && currentQuestion.type !== 'free_text') || isSubmitting.current}
-              loading={isSubmitting.current}
-              style={styles.submitButton}
-            />
+            <View style={styles.actionButtons}>
+              <Button
+                title={isLastQuestion ? 'Finish' : 'Next'}
+                onPress={() => {
+                  // Allow Next even without answer (will mark as incorrect)
+                  if (selectedAnswer === '' && currentQuestion.type !== 'free_text') {
+                    // Mark as incorrect and move to next
+                    handleAnswer('');
+                  } else {
+                    handleAnswer();
+                  }
+                }}
+                variant="primary"
+                size="large"
+                fullWidth
+                disabled={isSubmitting.current}
+                loading={isSubmitting.current}
+                style={styles.submitButton}
+              />
+              
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={() => {
+                  // Skip current question (mark as incorrect and move to next)
+                  if (!isSubmitting.current && currentQuestion) {
+                    handleAnswer('');
+                  }
+                }}
+                disabled={isSubmitting.current}
+              >
+                <Typography variant="bodyBold" color={colors.textSecondary}>
+                  Skip →
+                </Typography>
+              </TouchableOpacity>
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -620,5 +644,15 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 'auto',
+  },
+  actionButtons: {
+    gap: 12,
+    marginTop: 8,
+  },
+  skipButton: {
+    padding: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    alignSelf: 'center',
   },
 });
